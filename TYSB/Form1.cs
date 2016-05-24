@@ -37,7 +37,7 @@ namespace TYSB
         }
         
         private int _pack = -1;
-        private void button1_Click(object sender, EventArgs e)
+        private async void button1_Click(object sender, EventArgs e)
         {
             if (_pack != -1)
             {
@@ -47,31 +47,34 @@ namespace TYSB
             _pack = Utils.OpenPack(@"D:\Program Files (x86)\《300英雄》\Data.jmp");
             int iterator = Utils.CreateIterator(_pack);
             uint count = Utils.GetFileCount(_pack);
-            progressBar1.Maximum = (int)count;
             progressBar1.Value = 0;
+            progressBar1.Maximum = (int)count;
 
             var node = new TreeNode("Data.jmp");
-
-            do
+            
+            await Task.Run(() =>
             {
-                var packFile = new PackFile(Marshal.PtrToStringAnsi(Utils.GetFileName(iterator)),
-                    Utils.GetFileCompressedSize(iterator), Utils.GetFileUncompressedSize(iterator),
-                    Utils.TellIterator(iterator));
-                if (progressBar1.Value < progressBar1.Maximum)
+                do
                 {
-                    ++progressBar1.Value;
-                }
-                
-                var dirs = packFile.FileName.Split('\\');
-                var tmpNode = node;
-                foreach (var item in dirs)
-                {
-                    tmpNode = tmpNode.Nodes.ContainsKey(item) ? tmpNode.Nodes[item] : tmpNode.Nodes.Add(item);
-                    tmpNode.Name = item;
-                }
-                tmpNode.Tag = packFile;
-                tmpNode.ToolTipText = $"压缩大小：{packFile.CompressSize}\n解压大小：{packFile.UncompressSize}";
-            } while (Utils.MoveToNextFile(iterator));
+                    var packFile = new PackFile(Marshal.PtrToStringAnsi(Utils.GetFileName(iterator)),
+                        Utils.GetFileCompressedSize(iterator), Utils.GetFileUncompressedSize(iterator),
+                        Utils.TellIterator(iterator));
+                    if (progressBar1.Value < progressBar1.Maximum)
+                    {
+                        progressBar1.Invoke((Action)(() => { ++progressBar1.Value; }));
+                    }
+
+                    var dirs = packFile.FileName.Split('\\');
+                    var tmpNode = node;
+                    foreach (var item in dirs)
+                    {
+                        tmpNode = tmpNode.Nodes.ContainsKey(item) ? tmpNode.Nodes[item] : tmpNode.Nodes.Add(item);
+                        tmpNode.Name = item;
+                    }
+                    tmpNode.Tag = packFile;
+                    tmpNode.ToolTipText = $"压缩大小：{packFile.CompressSize}\n解压大小：{packFile.UncompressSize}";
+                } while (Utils.MoveToNextFile(iterator));
+            });
 
             Utils.CloseIterator(iterator);
 
@@ -79,7 +82,7 @@ namespace TYSB
             treeView1.Nodes.Add(node);
         }
 
-        private void ExportFile(TreeNode node)
+        private void EnumNode(TreeNode node, ICollection<PackFile> result)
         {
             if (node == null)
             {
@@ -90,22 +93,49 @@ namespace TYSB
             {
                 foreach (var child in node.Nodes)
                 {
-                    ExportFile((TreeNode) child);
+                    EnumNode((TreeNode)child, result);
                 }
                 return;
             }
 
-            var packFile = (PackFile) node.Tag;
-            int iter = Utils.CreateIterator(_pack);
-            Utils.SeekIterator(iter, packFile.Index);
-            var buffer = new byte[Utils.GetFileUncompressedSize(iter)];
-            Utils.GetFileContent(iter, buffer);
-            var fileName = packFile.FileName.Substring(packFile.FileName.IndexOf('\\') + 1);
-            Directory.CreateDirectory(fileName.Substring(0, fileName.LastIndexOf('\\')));
-            using (FileStream fs = new FileStream(fileName, FileMode.Create))
+            result.Add((PackFile) node.Tag);
+        }
+
+        private async void ExportFile(TreeNode node)
+        {
+            if (node == null)
             {
-                fs.Write(buffer, 0, buffer.Length);
+                throw new ArgumentNullException(nameof(node));
             }
+
+            var files = new HashSet<PackFile>();
+
+            EnumNode(node, files);
+
+            progressBar1.Value = 0;
+            progressBar1.Maximum = files.Count;
+
+            await Task.Run(() =>
+            {
+                foreach (var packFile in files)
+                {
+                    var iter = Utils.CreateIterator(_pack);
+                    Utils.SeekIterator(iter, packFile.Index);
+                    var buffer = new byte[Utils.GetFileUncompressedSize(iter)];
+                    Utils.GetFileContent(iter, buffer);
+                    var fileName = packFile.FileName.Substring(packFile.FileName.IndexOf('\\') + 1);
+                    Directory.CreateDirectory(fileName.Substring(0, fileName.LastIndexOf('\\')));
+                    using (var fs = new FileStream(fileName, FileMode.Create))
+                    {
+                        fs.Write(buffer, 0, buffer.Length);
+                    }
+
+                    if (progressBar1.Value < progressBar1.Maximum)
+                    {
+                        progressBar1.Invoke((Action) (() => { ++progressBar1.Value; }));
+                    }
+                }
+            });
         }
 
         private void mnuExport_Click(object sender, EventArgs e)

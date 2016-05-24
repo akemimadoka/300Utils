@@ -88,7 +88,7 @@ namespace
 			{
 			}
 
-			DWORD GetContent(byte* pOut, size_t bufferSize) const
+			DWORD GetContent(byte* pOut, size_t bufferSize) const noexcept
 			{
 				if (bufferSize < m_InternalIterator->uncompressed_size)
 				{
@@ -111,7 +111,7 @@ namespace
 				return RealSize;
 			}
 
-			bool IsValid() const
+			bool IsValid() const noexcept
 			{
 				return m_pPack != nullptr;
 			}

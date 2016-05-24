@@ -7,7 +7,7 @@ using System.Windows.Forms;
 
 namespace TYSB
 {
-    static class Utils
+    internal static class Utils
     {
         [DllImport("300Utils.dll", CallingConvention = CallingConvention.Cdecl, CharSet = CharSet.Unicode)]
         public static extern int OpenPack(string packname);
