@@ -49,6 +49,9 @@ namespace TYSB
         [DllImport("300Utils.dll", CallingConvention = CallingConvention.Cdecl, CharSet = CharSet.Ansi)]
         public static extern IntPtr GetFileName(int iterator);
 
+        [DllImport("300Utils.dll", CallingConvention = CallingConvention.Cdecl, CharSet = CharSet.Ansi)]
+        public static extern void SetFileName(int iterator, string name);
+
         [DllImport("300Utils.dll", CallingConvention = CallingConvention.Cdecl)]
         public static extern uint GetFileCompressedSize(int iterator);
 
@@ -56,14 +59,25 @@ namespace TYSB
         public static extern uint GetFileUncompressedSize(int iterator);
 
         [DllImport("300Utils.dll", CallingConvention = CallingConvention.Cdecl)]
-        public static extern ulong GetFileContent(int iterator, [MarshalAs(UnmanagedType.LPArray)] byte[] pBuffer, ulong dwBufferSize);
+        public static extern uint GetFileContent(int iterator, [MarshalAs(UnmanagedType.LPArray)] byte[] pBuffer, uint dwBufferSize);
 
-        public static ulong GetFileContent(int iterator, byte[] buffer)
+        public static uint GetFileContent(int iterator, byte[] buffer)
         {
             if (buffer == null)
                 throw new ArgumentNullException(nameof(buffer));
 
-            return GetFileContent(iterator, buffer, (ulong)buffer.Length);
+            return GetFileContent(iterator, buffer, (uint) buffer.Length);
+        }
+
+        [DllImport("300Utils.dll", CallingConvention = CallingConvention.Cdecl)]
+        public static extern uint SetFileContent(int iterator, [MarshalAs(UnmanagedType.LPArray)] byte[] pBuffer, uint dwBufferSize);
+
+        public static uint SetFileContent(int iterator, byte[] buffer)
+        {
+            if (buffer == null)
+                throw new ArgumentNullException(nameof(buffer));
+
+            return SetFileContent(iterator, buffer, (uint) buffer.Length);
         }
     }
 

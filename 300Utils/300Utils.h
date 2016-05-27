@@ -10,7 +10,7 @@
 
 typedef uint8_t byte;
 typedef uint32_t uint;
-typedef uint32_t ulong;
+typedef uint64_t ulong;
 
 extern "C"
 {
@@ -26,7 +26,12 @@ extern "C"
 	UTILS_FUNC size_t TellIterator(int iterator);
 	UTILS_FUNC bool IsValidIterator(int iterator);
 	UTILS_FUNC LPCSTR GetFileName(int iterator);
+	UTILS_FUNC void SetFileName(int iterator, LPCSTR name);
 	UTILS_FUNC size_t GetFileCompressedSize(int iterator);
 	UTILS_FUNC size_t GetFileUncompressedSize(int iterator);
 	UTILS_FUNC DWORD GetFileContent(int iterator, byte* pBuffer, DWORD dwBufferSize);
+	UTILS_FUNC DWORD SetFileContent(int iterator, const byte* pBuffer, DWORD dwBufferSize);
+
+	UTILS_FUNC int AddFile(int pack, LPCSTR FileName, const byte* pBuffer, DWORD dwBufferSize);
+	UTILS_FUNC void RemoveFile(int iterator);
 }

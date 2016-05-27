@@ -17,7 +17,7 @@ natFileStream::natFileStream(ncTStr lpFilename, nBool bReadable, nBool bWritable
 		NULL
 		);
 
-	if (m_hFile == INVALID_HANDLE_VALUE)
+	if (!m_hFile || m_hFile == INVALID_HANDLE_VALUE)
 	{
 		throw natWinException(_T("natFileStream::natFileStream"), natUtil::FormatString(_T("Open file \"%s\" failed"), lpFilename).c_str());
 	}
@@ -182,6 +182,16 @@ nLen natFileStream::WriteBytes(ncData pData, nLen Length)
 	return tWriteBytes;
 }
 
+void natFileStream::Flush()
+{
+	if (m_pMappedFile)
+	{
+		FlushViewOfFile(m_pMappedFile->GetInternalBuffer(), static_cast<SIZE_T>(GetSize()));
+	}
+	
+	FlushFileBuffers(m_hFile);
+}
+
 void natFileStream::Lock()
 {
 	m_Section.Lock();
@@ -197,13 +207,39 @@ void natFileStream::Unlock()
 	m_Section.UnLock();
 }
 
-ncTStr natFileStream::GetFilename() const
+ncTStr natFileStream::GetFilename() const noexcept
 {
 	return m_Filename.c_str();
 }
 
+HANDLE natFileStream::GetUnsafeHandle() const noexcept
+{
+	return m_hFile;
+}
+
+natRefPointer<natMemoryStream> natFileStream::MapToMemoryStream()
+{
+	if (m_pMappedFile)
+	{
+		return m_pMappedFile;
+	}
+
+	m_hMappedFile = CreateFileMapping(m_hFile, NULL, m_bWritable ? PAGE_READWRITE : PAGE_READONLY, NULL, NULL, NULL);
+	if (m_hMappedFile && m_hMappedFile != INVALID_HANDLE_VALUE)
+	{
+		auto pFile = MapViewOfFile(m_hMappedFile, (m_bReadable ? FILE_MAP_READ : 0) | (m_bWritable ? FILE_MAP_WRITE : 0), NULL, NULL, NULL);
+		if (pFile)
+		{
+			m_pMappedFile = natMemoryStream::CreateFromExternMemory(reinterpret_cast<nData>(pFile), GetSize(), m_bReadable, m_bWritable);
+		}
+	}
+
+	return m_pMappedFile;
+}
+
 natFileStream::~natFileStream()
 {
+	CloseHandle(m_hMappedFile);
 	CloseHandle(m_hFile);
 }
 
@@ -397,6 +433,10 @@ nLen natMemoryStream::WriteBytes(ncData pData, nLen Length)
 	return tWriteBytes;
 }
 
+void natMemoryStream::Flush()
+{
+}
+
 void natMemoryStream::Lock()
 {
 	m_Section.Lock();
@@ -435,9 +475,9 @@ natMemoryStream::~natMemoryStream()
 	}
 }
 
-natStream* natMemoryStream::CreateFromExternMemory(nData pData, nLen Length, nBool bReadable, nBool bWritable)
+natRefPointer<natMemoryStream> natMemoryStream::CreateFromExternMemory(nData pData, nLen Length, nBool bReadable, nBool bWritable)
 {
-	natMemoryStream* pStream = new natMemoryStream;
+	natRefPointer<natMemoryStream> pStream = make_ref<natMemoryStream>();
 
 	pStream->m_pData = pData;
 	pStream->m_Length = Length;

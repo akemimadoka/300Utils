@@ -43,10 +43,13 @@ namespace TYSB
             {
                 return;
             }
-            
-            _pack = Utils.OpenPack(@"D:\Program Files (x86)\《300英雄》\Data.jmp");
-            int iterator = Utils.CreateIterator(_pack);
-            uint count = Utils.GetFileCount(_pack);
+
+            /*OpenFileDialog ofd = new OpenFileDialog();
+            ofd.Filter = "Jmp文件(*.jmp)|*.jmp|所有文件(*.*)|*.*";
+            ofd.ShowDialog();*/
+            _pack = Utils.OpenPack(@"D:\Downloads\300_v201605203\Data.jmp");
+            var iterator = Utils.CreateIterator(_pack);
+            var count = Utils.GetFileCount(_pack);
             progressBar1.Value = 0;
             progressBar1.Maximum = (int)count;
 
@@ -101,13 +104,20 @@ namespace TYSB
             result.Add((PackFile) node.Tag);
         }
 
+        private bool _isExporting;
         private async void ExportFile(TreeNode node)
         {
+            if (_isExporting)
+            {
+                return;
+            }
+
             if (node == null)
             {
                 throw new ArgumentNullException(nameof(node));
             }
 
+            _isExporting = true;
             var files = new HashSet<PackFile>();
 
             EnumNode(node, files);
@@ -136,6 +146,8 @@ namespace TYSB
                     }
                 }
             });
+
+            _isExporting = false;
         }
 
         private void mnuExport_Click(object sender, EventArgs e)
@@ -149,15 +161,43 @@ namespace TYSB
 
         private void Form1_FormClosed(object sender, FormClosedEventArgs e)
         {
-            if (_pack != -1)
+            Utils.ClosePack(_pack);
+        }
+        
+        private void ReplaceFile(TreeNode node)
+        {
+            if (node?.Tag == null)
+                return;
+
+            var packFile = (PackFile) node.Tag;
+            var iter = Utils.CreateIterator(_pack);
+            Utils.SeekIterator(iter, packFile.Index);
+            OpenFileDialog ofd = new OpenFileDialog();
+            ofd.ShowDialog();
+            if (ofd.FileName == null)
+                return;
+
+            using (var file = new FileStream(ofd.FileName, FileMode.Open))
             {
-                Utils.ClosePack(_pack);
+                var content = new byte[file.Length];
+                file.Read(content, 0, content.Length);
+                Utils.SetFileContent(iter, content);
+                node.ToolTipText = $"压缩大小：{Utils.GetFileCompressedSize(iter)}\n解压大小：{Utils.GetFileUncompressedSize(iter)}";
             }
+        }
+
+        private void mnuReplace_Click(object sender, EventArgs e)
+        {
+            var item = treeView1.SelectedNode;
+            if (item?.Tag == null)
+                return;
+
+            ReplaceFile(item);
         }
 
         private void treeView1_AfterSelect(object sender, TreeViewEventArgs e)
         {
-            //contextMenuStrip1.Items[0].Enabled = e.Node?.Tag != null;
+            contextMenuStrip1.Items[1].Enabled = e.Node?.Tag != null;
         }
     }
 }

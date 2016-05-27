@@ -79,6 +79,12 @@ public:
 		}
 	}
 
+	natRefPointer(natRefPointer && other)
+		: m_pPointer(other.m_pPointer)
+	{
+		other.m_pPointer = nullptr;
+	}
+
 	~natRefPointer()
 	{
 		SafeRelease(m_pPointer);
@@ -100,7 +106,7 @@ public:
 		return (m_pPointer == other.m_pPointer);
 	}
 
-	natRefPointer& operator=(natRefPointer const& other)
+	natRefPointer& operator=(natRefPointer const& other)&
 	{
 		if (m_pPointer != other.m_pPointer)
 		{
@@ -110,6 +116,17 @@ public:
 			{
 				m_pPointer->AddRef();
 			}
+		}
+
+		return *this;
+	}
+
+	natRefPointer& operator=(natRefPointer && other)&
+	{
+		if (m_pPointer != other.m_pPointer)
+		{
+			m_pPointer = other.m_pPointer;
+			other.m_pPointer = nullptr;
 		}
 
 		return *this;

@@ -31,6 +31,7 @@
             this.components = new System.ComponentModel.Container();
             this.contextMenuStrip1 = new System.Windows.Forms.ContextMenuStrip(this.components);
             this.mnuExport = new System.Windows.Forms.ToolStripMenuItem();
+            this.mnuReplace = new System.Windows.Forms.ToolStripMenuItem();
             this.button1 = new System.Windows.Forms.Button();
             this.progressBar1 = new System.Windows.Forms.ProgressBar();
             this.treeView1 = new System.Windows.Forms.TreeView();
@@ -40,20 +41,28 @@
             // contextMenuStrip1
             // 
             this.contextMenuStrip1.Items.AddRange(new System.Windows.Forms.ToolStripItem[] {
-            this.mnuExport});
+            this.mnuExport,
+            this.mnuReplace});
             this.contextMenuStrip1.Name = "contextMenuStrip1";
-            this.contextMenuStrip1.Size = new System.Drawing.Size(101, 26);
+            this.contextMenuStrip1.Size = new System.Drawing.Size(101, 48);
             // 
             // mnuExport
             // 
             this.mnuExport.Name = "mnuExport";
-            this.mnuExport.Size = new System.Drawing.Size(100, 22);
+            this.mnuExport.Size = new System.Drawing.Size(152, 22);
             this.mnuExport.Text = "导出";
             this.mnuExport.Click += new System.EventHandler(this.mnuExport_Click);
             // 
+            // mnuReplace
+            // 
+            this.mnuReplace.Name = "mnuReplace";
+            this.mnuReplace.Size = new System.Drawing.Size(152, 22);
+            this.mnuReplace.Text = "替换";
+            this.mnuReplace.Click += new System.EventHandler(this.mnuReplace_Click);
+            // 
             // button1
             // 
-            this.button1.Location = new System.Drawing.Point(12, 183);
+            this.button1.Location = new System.Drawing.Point(12, 355);
             this.button1.Name = "button1";
             this.button1.Size = new System.Drawing.Size(190, 31);
             this.button1.TabIndex = 1;
@@ -63,9 +72,9 @@
             // 
             // progressBar1
             // 
-            this.progressBar1.Location = new System.Drawing.Point(12, 144);
+            this.progressBar1.Location = new System.Drawing.Point(12, 326);
             this.progressBar1.Name = "progressBar1";
-            this.progressBar1.Size = new System.Drawing.Size(437, 23);
+            this.progressBar1.Size = new System.Drawing.Size(564, 23);
             this.progressBar1.TabIndex = 2;
             // 
             // treeView1
@@ -74,7 +83,7 @@
             this.treeView1.Location = new System.Drawing.Point(12, 12);
             this.treeView1.Name = "treeView1";
             this.treeView1.ShowNodeToolTips = true;
-            this.treeView1.Size = new System.Drawing.Size(437, 126);
+            this.treeView1.Size = new System.Drawing.Size(564, 308);
             this.treeView1.TabIndex = 3;
             this.treeView1.AfterSelect += new System.Windows.Forms.TreeViewEventHandler(this.treeView1_AfterSelect);
             // 
@@ -82,7 +91,7 @@
             // 
             this.AutoScaleDimensions = new System.Drawing.SizeF(6F, 12F);
             this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
-            this.ClientSize = new System.Drawing.Size(463, 227);
+            this.ClientSize = new System.Drawing.Size(588, 398);
             this.Controls.Add(this.treeView1);
             this.Controls.Add(this.progressBar1);
             this.Controls.Add(this.button1);
@@ -102,6 +111,7 @@
         private System.Windows.Forms.ContextMenuStrip contextMenuStrip1;
         private System.Windows.Forms.ToolStripMenuItem mnuExport;
         private System.Windows.Forms.TreeView treeView1;
+        private System.Windows.Forms.ToolStripMenuItem mnuReplace;
     }
 }
 
