@@ -10,31 +10,45 @@
 #include <stdexcept>
 #include <list>
 
+using namespace NatsuLib;
+
 namespace
 {
 	class Pack
+		: nonmovable
 	{
 	public:
 		explicit Pack(LPCTSTR packName)
 			: m_Edited(false)
 		{
-			HANDLE hTmpfile = CreateFile(packName, GENERIC_WRITE, FILE_SHARE_READ, NULL, OPEN_EXISTING, NULL, NULL);
+			HANDLE hTmpfile = CreateFile(packName, NULL, FILE_SHARE_READ | FILE_SHARE_WRITE, NULL, OPEN_EXISTING, NULL, NULL);
 			DWORD LastError = GetLastError();
 			CloseHandle(hTmpfile);
 
-			m_FileStream = std::move(make_ref<natFileStream>(packName, true, true));
+			m_FileStream = std::move(make_ref<natFileStream>(nString{ WideStringView{ packName } }, true, true));
 
-			if (LastError != ERROR_FILE_NOT_FOUND)
+			if (LastError == ERROR_FILE_NOT_FOUND)
 			{
-				m_pMappedFile = std::move(m_FileStream->MapToMemoryStream());
-				memcpy_s(&m_FileHeader, sizeof(FileHeader), m_pMappedFile->GetInternalBuffer(), sizeof(FileHeader));
+				FileHeader fh{ 0 };
+				strcpy_s(fh.header, "DATA1.0");
+
+				m_FileStream->WriteBytes(reinterpret_cast<ncData>(&fh), sizeof(FileHeader));
+				m_FileStream->SetPosition(NatSeek::Beg, 0);
+
+				m_pMappedFile = m_FileStream->MapToMemoryStream();
+			}
+			else
+			{
+				m_pMappedFile = m_FileStream->MapToMemoryStream();
+				memcpy_s(&m_FileHeader, sizeof(FileHeader), m_pMappedFile->GetExternData(), sizeof(FileHeader));
 
 				if (strcmp(m_FileHeader.header, "DATA1.0") != 0)
 				{
-					throw std::runtime_error("Header is bad.");
+					// 不检查
+					// throw std::runtime_error("Header is bad.");
 				}
 
-				auto pFileNodeBegin = reinterpret_cast<const FileNode*>(m_pMappedFile->GetInternalBuffer() + sizeof(FileHeader));
+				auto pFileNodeBegin = reinterpret_cast<const FileNode*>(m_pMappedFile->GetExternData() + sizeof(FileHeader));
 				auto pFileNodeEnd = pFileNodeBegin + m_FileHeader.count;
 				m_Nodes.resize(m_FileHeader.count);
 				m_Nodes.assign(pFileNodeBegin, pFileNodeEnd);
@@ -45,22 +59,7 @@ namespace
 					return node1.position < node2.position || !((m_Edited = true));
 				});
 			}
-			else
-			{
-				FileHeader fh { 0 };
-				strcpy_s(fh.header, "DATA1.0");
-
-				m_FileStream->WriteBytes(reinterpret_cast<ncData>(&fh), sizeof(FileHeader));
-				m_FileStream->SetPosition(NatSeek::Beg, 0);
-
-				m_pMappedFile = std::move(m_FileStream->MapToMemoryStream());
-			}
 		}
-
-		Pack(Pack const& other) = delete;
-		Pack(Pack&& other) = delete;
-		Pack& operator=(Pack const& other) = delete;
-		Pack& operator=(Pack&& other) = delete;
 
 		~Pack()
 		{
@@ -89,7 +88,6 @@ namespace
 #pragma pack()
 
 	public:
-
 		///	@brief	对包中文件的迭代器包装
 		///	@note	包中文件应以文件实际位置为基准始终保持有序
 		class Iterator
@@ -116,7 +114,7 @@ namespace
 
 				std::vector<byte> content(m_InternalIterator->uncompressed_size);
 				DWORD RealSize;
-				if (uncompress(content.data(), &RealSize, m_pPack->m_pMappedFile->GetInternalBuffer() + m_InternalIterator->position, m_InternalIterator->compressed_size) != Z_OK)
+				if (uncompress(content.data(), &RealSize, m_pPack->m_pMappedFile->GetExternData() + m_InternalIterator->position, m_InternalIterator->compressed_size) != Z_OK)
 				{
 					return 0;
 				}
@@ -136,15 +134,16 @@ namespace
 				return m_InternalIterator != prev(m_pPack->m_Nodes.end()) ? next(m_InternalIterator)->position - m_InternalIterator->position >= Size : m_pPack->m_FileStream->GetSize() - m_InternalIterator->position > static_cast<nLen>(Size);
 			}
 
-			__declspec(deprecated("Internal use"))
+			[[deprecated("Internal use")]]
 			void _Unchecked_SetContent(const byte* pBuffer, size_t bufferSize, size_t originSize) noexcept
 			{
-				memcpy_s(m_pPack->m_pMappedFile->GetInternalBuffer() + m_InternalIterator->position, m_InternalIterator != prev(m_pPack->m_Nodes.end()) ? next(m_InternalIterator)->position - m_InternalIterator->position : static_cast<size_t>(m_pPack->m_FileStream->GetSize() - m_InternalIterator->position), pBuffer, bufferSize);
+				memcpy_s(const_cast<nData>(m_pPack->m_pMappedFile->GetExternData()) + m_InternalIterator->position, m_InternalIterator != prev(m_pPack->m_Nodes.end()) ? next(m_InternalIterator)->position - m_InternalIterator->position : static_cast<size_t>(m_pPack->m_FileStream->GetSize() - m_InternalIterator->position), pBuffer, bufferSize);
 				m_InternalIterator->compressed_size = bufferSize;
 				m_InternalIterator->uncompressed_size = originSize;
 			}
 
 			///	@brief	修改指向的文件的内容
+			///	@note	开洞注意
 			bool SetContent(const byte* pBuffer, size_t bufferSize, DWORD& RealSize) noexcept
 			{
 				DWORD compressed_size = compressBound(bufferSize);
@@ -315,7 +314,7 @@ namespace
 			m_Edited = true;
 		}
 
-		/// @brief		将文件节点指向指定的偏移位置
+		///	@brief		将文件节点指向指定的偏移位置
 		///	@note		简单的修改指向，不会进行额外操作如复制原文件内容到新位置
 		///	@warning	不会进行合法性检测，请确保这个位置由FindCave获得
 		Iterator AssociateFileNodeTo(Iterator FileNodeIterator, uint32_t Position)
@@ -340,15 +339,21 @@ namespace
 		{
 			if (m_Edited)
 				CommitOperation();
-			return size && NATOK(m_FileStream->SetSize(m_FileStream->GetSize() + size)) && !!((m_pMappedFile = m_FileStream->MapToMemoryStream()));
+			if (!size)
+			{
+				return false;
+			}
+			m_FileStream->SetSize(m_FileStream->GetSize() + size);
+			return m_pMappedFile = m_FileStream->MapToMemoryStream();
 		}
 
 		///	@brief		提交操作
 		void CommitOperation()
 		{
-			reinterpret_cast<FileHeader*>(m_pMappedFile->GetInternalBuffer())->count = m_FileHeader.count = m_Nodes.size();
-			FileNode* pFileNodeBegin = reinterpret_cast<FileNode*>(m_pMappedFile->GetInternalBuffer() + sizeof(FileHeader));
-			FileNode* pFileNodeEnd = reinterpret_cast<FileNode*>(m_pMappedFile->GetInternalBuffer() + m_Nodes.begin()->position);
+			const auto pData = const_cast<nData>(m_pMappedFile->GetExternData());
+			reinterpret_cast<FileHeader*>(pData)->count = m_FileHeader.count = m_Nodes.size();
+			const auto pFileNodeBegin = reinterpret_cast<FileNode*>(pData + sizeof(FileHeader));
+			const auto pFileNodeEnd = reinterpret_cast<FileNode*>(pData + m_Nodes.begin()->position);
 			if (pFileNodeEnd - pFileNodeBegin < static_cast<int>(m_Nodes.size()))
 			{
 				throw std::out_of_range("Too many nodes.");
@@ -362,20 +367,16 @@ namespace
 			});
 #endif
 
-			for (auto const& fileNode : m_Nodes)
-			{
-				*pFileNodeBegin++ = fileNode;
-			}
+			copy(m_Nodes.begin(), m_Nodes.end(), pFileNodeBegin);
 
 			m_FileStream->Flush();
 		}
 
 	private:
 		natRefPointer<natFileStream> m_FileStream;
-		natRefPointer<natMemoryStream> m_pMappedFile;
+		natRefPointer<natExternMemoryStream> m_pMappedFile;
 		bool m_Edited;
 
-		///	@brief		key为Position
 		std::list<FileNode> m_Nodes;
 	};
 
@@ -481,7 +482,7 @@ bool MoveToNextFile(int iterator)
 {
 	assert(IsValidIterator(iterator) && "Invalid iterator.");
 	auto& iter = g_Iterators[iterator];
-	return iter == iter.GetPack()->end() ? false : ++iter != iter.GetPack()->end();
+	return iter != iter.GetPack()->end() && ++iter != iter.GetPack()->end();
 }
 
 bool SeekIterator(int iterator, size_t dest)

@@ -5,7 +5,9 @@
 #include <300Utils.h>
 #include <iostream>
 #include <vector>
-#include "../NatsuLib/natStream.h"
+#include "natStream.h"
+
+using namespace NatsuLib;
 
 int main()
 {
@@ -29,5 +31,5 @@ int main()
 	ClosePack(pack);
 
 	system("pause");
-    return 0;
+	return 0;
 }

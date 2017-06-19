@@ -1,6 +1,6 @@
 [submodule "Extern/GenericInjector"]
 	path = Extern/GenericInjector
-	url = https://github.com/akemimadoka/GenericInjector.git
+	url = D:/Visual Studio 2015/Projects/GenericInjector
 [submodule "Extern/NatsuLib"]
 	path = Extern/NatsuLib
 	url = D:/projects/NatsuLib
